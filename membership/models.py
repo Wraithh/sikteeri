@@ -14,6 +14,7 @@ from django.conf import settings
 from django.template import Context
 from django.core import mail
 from django.template.loader import render_to_string
+from django.dispatch import Signal
 
 from django.contrib.admin.models import LogEntry
 from django.contrib.contenttypes.generic import GenericRelation
@@ -21,7 +22,6 @@ from django.contrib.contenttypes.models import ContentType
 
 from utils import log_change, tupletuple_to_dict
 
-from email_utils import send_as_email, send_preapprove_email
 from email_utils import bill_sender, preapprove_email_sender
 
 from reference_numbers import generate_membership_bill_reference_number
@@ -210,7 +210,7 @@ class Membership(models.Model):
         self.save()
         log_change(self, user, change_message="Preapproved")
 
-        ret_items = send_preapprove_email.send_robust(self.__class__, instance=self, user=user)
+        ret_items = member_preapproved.send_robust(self.__class__, instance=self, user=user)
         for item in ret_items:
             sender, error = item
             if error != None:
@@ -377,6 +377,7 @@ class Bill(models.Model):
     billingcycle = models.ForeignKey(BillingCycle, verbose_name=_('Cycle'))
     reminder_count = models.IntegerField(default=0, verbose_name=_('Reminder count'))
     due_date = models.DateTimeField(verbose_name=_('Due date'))
+    due_date_reached = models.BooleanField(default=False, verbose_name=_('Due date reached'))
 
     created = models.DateTimeField(auto_now_add=True, verbose_name=_('Created'))
     last_changed = models.DateTimeField(auto_now=True, verbose_name=_('Last changed'))
@@ -458,10 +459,11 @@ class Bill(models.Model):
                 })
 
     # FIXME: Should save sending date
-    def send_as_email(self):
+    def send(self):
         membership = self.billingcycle.membership
         if self.billingcycle.sum > 0:
-            ret_items = send_as_email.send_robust(self.__class__, instance=self)
+            # Actually should send even for zero sum bills, but for now no one would care
+            ret_items = bill_created.send_robust(self.__class__, instance=self)
             for item in ret_items:
                 sender, error = item
                 if error != None:
@@ -547,7 +549,11 @@ models.signals.post_save.connect(logging_log_change, sender=Bill)
 models.signals.post_save.connect(logging_log_change, sender=Fee)
 models.signals.post_save.connect(logging_log_change, sender=Payment)
 
+# Signals
+bill_created = Signal(providing_args=["instance"])
+member_preapproved = Signal(providing_args=["instance", "user"])
+
 # These are registered here due to import madness and general clarity
-send_as_email.connect(bill_sender, sender=Bill, dispatch_uid="email_bill")
-send_preapprove_email.connect(preapprove_email_sender, sender=Membership,
+bill_created.connect(bill_sender, sender=Bill, dispatch_uid="email_bill")
+member_preapproved.connect(preapprove_email_sender, sender=Membership,
                               dispatch_uid="preapprove_email")

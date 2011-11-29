@@ -44,7 +44,7 @@ def create_billingcycle(membership):
         billing_cycle.save()
         bill = Bill(billingcycle=billing_cycle)
         bill.save()
-        bill.send_as_email()
+        bill.send()
         transaction.commit()
     except Exception, e:
         transaction.rollback()
@@ -78,7 +78,7 @@ def send_reminder(membership):
     bill = Bill(billingcycle=billing_cycle)
     bill.reminder_count = billing_cycle.bill_set.count()
     bill.save()
-    bill.send_as_email()
+    bill.send()
     return bill
 
 def makebills():

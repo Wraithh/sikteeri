@@ -8,11 +8,6 @@ from django.utils.translation import ugettext_lazy as _
 from django.core import mail
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
-from django.dispatch import Signal
-
-# Signals
-send_as_email = Signal(providing_args=["instance"])
-send_preapprove_email = Signal(providing_args=["instance", "user"])
 
 # Address helper
 def unix_email(membership):

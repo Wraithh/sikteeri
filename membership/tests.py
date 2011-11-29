@@ -323,7 +323,7 @@ class BillingTest(TestCase):
         handler = MockLoggingHandler()
         models_logger.addHandler(handler)
 
-        bill.send_as_email()
+        bill.send()
         self.assertTrue(bill.billingcycle.is_paid)
         self.assertEqual(len(mail.outbox), 0)
 
